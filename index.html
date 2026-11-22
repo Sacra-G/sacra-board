@@ -8,14 +8,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sacra掲示板">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#151515">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
   html, body { margin: 0; height: 100%; background: #151515; overflow: hidden; }
-  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  /* 画面上部の時計や電池の帯の下から掲示板を表示する。帯の部分は掲示板の背景色に合わせて塗る */
+  iframe { position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); width: 100%; height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; display: block; }
 </style>
 </head>
 <body>
@@ -35,6 +36,9 @@
           var values = {};
           KEYS.forEach(function (k) { values[k] = localStorage.getItem(k) || ''; });
           e.source.postMessage({ sacra: 'data', values: values }, e.origin);
+        } else if (d.sacra === 'bar' && /^#[0-9A-Fa-f]{6}$/.test(d.color)) {
+          document.documentElement.style.background = d.color; document.body.style.background = d.color;
+          var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', d.color);
         } else if (d.sacra === 'set' && KEYS.indexOf(d.key) >= 0) {
           if (d.value) localStorage.setItem(d.key, String(d.value)); else localStorage.removeItem(d.key);
         }
