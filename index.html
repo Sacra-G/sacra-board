@@ -15,19 +15,25 @@
 <link rel="manifest" href="manifest.webmanifest">
 <style>
   html, body { margin: 0; height: 100%; background: #151515; overflow: hidden; }
-  /* 画面上部の時計や電池の帯の下から掲示板を表示する。帯の部分は掲示板の背景色に合わせて塗る */
-  iframe { position: fixed; left: 0; right: 0; bottom: 0; top: env(safe-area-inset-top, 0px); width: 100%; height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; display: block; }
+  /* 掲示板を画面いっぱい（時計や電池の帯の裏まで）に表示する。帯の高さは掲示板に伝えて、文字が重ならないようにしてもらう */
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  #probe { position: fixed; top: 0; left: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 </style>
 </head>
 <body>
 <!-- 掲示板本体（Google Apps Script のWebアプリ）を画面いっぱいに表示する -->
 <iframe src="https://script.google.com/macros/s/AKfycbwxbNtPd44XtKkLFelMUgYnDQudUnXYAUpHcVlwbuVQzEmTdvd09Z5PM7TymDB4uQ/exec" title="Sacra練習掲示板" allow="clipboard-write"></iframe>
+<div id="probe"></div>
 <script>
   // 掲示板のログイン情報と着せ替えを、この入口ページに預かる。
   // ホーム画面のアプリとして開くと、iPhoneは埋め込んだ掲示板側の保存データを閉じるたびに消してしまうため
   (function () {
     var KEYS = ['sacra_session', 'sacra_look'];
     var FROM = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/; // 掲示板（GAS）の画面からの依頼だけ受け付ける
+    var probe = document.getElementById('probe'), last = null;
+    function insets() { var cs = getComputedStyle(probe); return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 }; }
+    // 画面の向きが変わったら帯の高さを伝え直す
+    window.addEventListener('resize', function () { if (last) try { last.source.postMessage({ sacra: 'inset', inset: insets() }, last.origin); } catch (err) {} });
     window.addEventListener('message', function (e) {
       var d = e.data;
       if (!FROM.test(e.origin) || !d || typeof d !== 'object') return;
@@ -35,7 +41,8 @@
         if (d.sacra === 'get') {
           var values = {};
           KEYS.forEach(function (k) { values[k] = localStorage.getItem(k) || ''; });
-          e.source.postMessage({ sacra: 'data', values: values }, e.origin);
+          last = { source: e.source, origin: e.origin };
+          e.source.postMessage({ sacra: 'data', values: values, inset: insets() }, e.origin);
         } else if (d.sacra === 'bar' && /^#[0-9A-Fa-f]{6}$/.test(d.color)) {
           document.documentElement.style.background = d.color; document.body.style.background = d.color;
           var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', d.color);
