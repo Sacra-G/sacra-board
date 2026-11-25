@@ -45,13 +45,16 @@
     var isApp = function () { return !!navigator.standalone || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)'); };
     var size = {};
     var iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (iOS) document.documentElement.className += ' ios';
     var vhEl = document.getElementById('vh'), lastH = 0, lastPortrait = null;
     function fit() {
       var portrait = window.innerHeight >= window.innerWidth;
       var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
       var vv = window.visualViewport;
-      if (iOS) {
+      // iPhone のホーム画面アプリ（または表示の高さが画面の高さとほぼ同じ＝ホーム画面アプリと同じ見え方）のときだけ、画面の端まで伸ばす。
+      // Safari のタブで開いたとき（上下に URL バーなどがある）は、Android と同じく見えている範囲に合わせる（100vh だと下が切れる）
+      var iosApp = iOS && (isApp() || (portrait && sh - window.innerHeight < 80));
+      document.documentElement.classList.toggle('ios', iosApp);
+      if (iosApp) {
         // iPhone：表示の高さがホームバーや時計の帯の分だけ短く報告されるので、
         // 「表示＋時計の帯」「100vh」「ホーム画面アプリなら画面そのものの高さ」のいちばん大きい値まで伸ばす。
         // ページ自体の高さも同じにしないと、下のホームバーの所で掲示板が切れて描かれない
@@ -71,7 +74,7 @@
         document.documentElement.style.height = document.body.style.height = '';
       }
       if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
-      size = { app: isApp(), ios: iOS, inner: window.innerHeight, screen: sh, v100: vhEl.offsetHeight, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
+      size = { app: isApp(), ios: iOS ? (iosApp ? 'app' : 'tab') : '', inner: window.innerHeight, screen: sh, v100: vhEl.offsetHeight, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
     }
     fit();
     window.addEventListener('load', fit);
