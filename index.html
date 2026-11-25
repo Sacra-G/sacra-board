@@ -32,13 +32,22 @@
     var KEYS = ['sacra_session', 'sacra_look'];
     var FROM = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/; // 掲示板（GAS）の画面からの依頼だけ受け付ける
     var EXEC = 'https://script.google.com/macros/s/AKfycbwxbNtPd44XtKkLFelMUgYnDQudUnXYAUpHcVlwbuVQzEmTdvd09Z5PM7TymDB4uQ/exec';
-    var probe = document.getElementById('probe'), last = null;
+    var probe = document.getElementById('probe'), board = document.getElementById('board'), last = null;
+    // 掲示板を画面の一番下まで広げる。iPhoneのホーム画面アプリでは「100%」も「100vh」も下のホームバーの所まで届かず、
+    // 下に入口ページの地の色（灰色）が見えてしまうことがあるので、画面そのものの高さ（screen）に合わせる
+    function fit() {
+      var portrait = window.innerHeight >= window.innerWidth;
+      var full = navigator.standalone ? (portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height)) : 0;
+      board.style.height = Math.max(window.innerHeight, document.documentElement.clientHeight, full) + 'px';
+    }
+    fit();
+    window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
     function insets() { var cs = getComputedStyle(probe); return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 }; }
     // 掲示板を開くとき、時計の帯（上）とホームバー（下）の高さをURLで伝える
     var ins = insets();
     document.getElementById('board').src = EXEC + '?st=' + Math.round(ins.top) + '&sb=' + Math.round(ins.bottom);
     // 画面の向きが変わったら帯の高さを伝え直す
-    window.addEventListener('resize', function () { if (last) try { last.source.postMessage({ sacra: 'inset', inset: insets() }, last.origin); } catch (err) {} });
+    window.addEventListener('resize', function () { fit(); if (last) try { last.source.postMessage({ sacra: 'inset', inset: insets() }, last.origin); } catch (err) {} });
     window.addEventListener('message', function (e) {
       var d = e.data;
       if (!FROM.test(e.origin) || !d || typeof d !== 'object') return;
