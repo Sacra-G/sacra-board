@@ -14,7 +14,9 @@
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
-  html, body { margin: 0; height: 100%; background: #151515; overflow: hidden; }
+  /* 入口ページ自体は決してスクロールさせない（iPhoneでは、裏でずれると掲示板を押した位置と反応する位置がずれる） */
+  html, body { margin: 0; height: 100%; background: #151515; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; }
   /* 掲示板を画面いっぱい（時計や電池の帯の裏まで）に表示する。帯の高さは掲示板に伝えて、文字が重ならないようにしてもらう */
   /* iPhoneのホーム画面アプリでは「100%」が時計の帯のぶん短くなるので、その分を足して下まで届かせる */
   iframe { position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: calc(100% + env(safe-area-inset-top, 0px)); min-height: 100vh; border: 0; display: block; }
@@ -43,11 +45,13 @@
       var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
       var h = Math.max(window.innerHeight, document.documentElement.clientHeight, isApp() ? sh : 0);
       board.style.height = h + 'px';
-      document.documentElement.style.height = document.body.style.height = h + 'px';
-      size = { app: isApp(), inner: window.innerHeight, screen: sh, frame: board.offsetHeight }; // 確認用（掲示板の設定画面に出す）
+      var vv = window.visualViewport;
+      size = { app: isApp(), inner: window.innerHeight, screen: sh, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
     }
     fit();
     window.addEventListener('load', fit);
+    // 何かの拍子に入口ページがずれたら、すぐ元の位置へ戻す
+    window.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
     setTimeout(fit, 600);
     window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
     function insets() { var cs = getComputedStyle(probe); return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 }; }
