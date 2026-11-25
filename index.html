@@ -35,12 +35,20 @@
     var probe = document.getElementById('probe'), board = document.getElementById('board'), last = null;
     // 掲示板を画面の一番下まで広げる。iPhoneのホーム画面アプリでは「100%」も「100vh」も下のホームバーの所まで届かず、
     // 下に入口ページの地の色（灰色）が見えてしまうことがあるので、画面そのものの高さ（screen）に合わせる
+    var mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+    var isApp = function () { return !!navigator.standalone || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)'); };
+    var size = {};
     function fit() {
       var portrait = window.innerHeight >= window.innerWidth;
-      var full = navigator.standalone ? (portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height)) : 0;
-      board.style.height = Math.max(window.innerHeight, document.documentElement.clientHeight, full) + 'px';
+      var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      var h = Math.max(window.innerHeight, document.documentElement.clientHeight, isApp() ? sh : 0);
+      board.style.height = h + 'px';
+      document.documentElement.style.height = document.body.style.height = h + 'px';
+      size = { app: isApp(), inner: window.innerHeight, screen: sh, frame: board.offsetHeight }; // 確認用（掲示板の設定画面に出す）
     }
     fit();
+    window.addEventListener('load', fit);
+    setTimeout(fit, 600);
     window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
     function insets() { var cs = getComputedStyle(probe); return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 }; }
     // 掲示板を開くとき、時計の帯（上）とホームバー（下）の高さをURLで伝える
@@ -56,9 +64,11 @@
           var values = {};
           KEYS.forEach(function (k) { values[k] = localStorage.getItem(k) || ''; });
           last = { source: e.source, origin: e.origin };
-          e.source.postMessage({ sacra: 'data', values: values, inset: insets() }, e.origin);
+          fit(); e.source.postMessage({ sacra: 'data', values: values, inset: insets(), size: size }, e.origin);
         } else if (d.sacra === 'bar' && /^#[0-9A-Fa-f]{6}$/.test(d.color)) {
-          document.documentElement.style.background = d.color; document.body.style.background = d.color;
+          // 枠の外に見える所（下のすき間など）は掲示板の背景と同じ色にする（灰色にしない）
+          var bg = /^#[0-9A-Fa-f]{6}$/.test(d.bg) ? d.bg : d.color;
+          document.documentElement.style.background = bg; document.body.style.background = bg;
           var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', d.color);
         } else if (d.sacra === 'set' && KEYS.indexOf(d.key) >= 0) {
           if (d.value) localStorage.setItem(d.key, String(d.value)); else localStorage.removeItem(d.key);
