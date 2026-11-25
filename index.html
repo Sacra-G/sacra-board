@@ -18,7 +18,8 @@
   html, body { margin: 0; height: 100%; background: #151515; overflow: hidden; overscroll-behavior: none; }
   /* 掲示板を画面いっぱい（時計や電池の帯の裏まで）に表示する。帯の高さは掲示板に伝えて、文字が重ならないようにしてもらう */
   /* iPhoneのホーム画面アプリでは「100%」が時計の帯のぶん短くなるので、その分を足して下まで届かせる */
-  iframe { position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: calc(100% + env(safe-area-inset-top, 0px)); min-height: 100vh; border: 0; display: block; }
+  /* ふつうは今見えている範囲にぴったり（Android など）。iPhone だけは JS（fit）で画面の下の端まで伸ばす */
+  iframe { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
   #probe { position: fixed; top: 0; left: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 </style>
 </head>
@@ -39,13 +40,20 @@
     var mq = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
     var isApp = function () { return !!navigator.standalone || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)'); };
     var size = {};
+    var iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     function fit() {
       var portrait = window.innerHeight >= window.innerWidth;
       var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-      var h = Math.max(window.innerHeight, document.documentElement.clientHeight, isApp() ? sh : 0);
-      board.style.height = h + 'px';
-      // iPhoneのホーム画面アプリでは、ページ自体の高さも画面いっぱいにしないと、下のホームバーの所で掲示板が切れて描かれない
-      document.documentElement.style.height = document.body.style.height = h + 'px';
+      if (iOS) {
+        // iPhone：表示の高さがホームバーや時計の帯の分だけ短く報告されるので、画面そのものの高さまで伸ばす。
+        // ページ自体の高さも同じにしないと、下のホームバーの所で掲示板が切れて描かれない
+        var h = Math.max(window.innerHeight + insets().top, document.documentElement.clientHeight, isApp() ? sh : 0);
+        board.style.height = h + 'px';
+        document.documentElement.style.height = document.body.style.height = h + 'px';
+      } else {
+        // Android など：今見えている範囲にぴったり合わせる（画面そのものの高さはナビゲーションバーや URL バーも含むので使わない）
+        board.style.height = ''; document.documentElement.style.height = document.body.style.height = '';
+      }
       if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
       var vv = window.visualViewport;
       size = { app: isApp(), inner: window.innerHeight, screen: sh, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
@@ -54,6 +62,7 @@
     window.addEventListener('load', fit);
     // 何かの拍子に入口ページがずれたら、すぐ元の位置へ戻す
     window.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); }, { passive: true });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
     if (window.visualViewport) window.visualViewport.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
     setTimeout(fit, 600);
     window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
