@@ -20,6 +20,7 @@
   /* iPhoneのホーム画面アプリでは「100%」が時計の帯のぶん短くなるので、その分を足して下まで届かせる */
   /* ふつうは今見えている範囲にぴったり（Android など）。iPhone だけは JS（fit）で画面の下の端まで伸ばす */
   iframe { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
+  #vh { position: fixed; top: 0; left: 0; width: 0; height: 100vh; visibility: hidden; pointer-events: none; }
   #probe { position: fixed; top: 0; left: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 </style>
 </head>
@@ -27,6 +28,7 @@
 <!-- 掲示板本体（Google Apps Script のWebアプリ）を画面いっぱいに表示する -->
 <iframe id="board" title="Sacra練習掲示板" allow="clipboard-write"></iframe>
 <div id="probe"></div>
+<div id="vh"></div>
 <script>
   // 掲示板のログイン情報と着せ替えを、この入口ページに預かる。
   // ホーム画面のアプリとして開くと、iPhoneは埋め込んだ掲示板側の保存データを閉じるたびに消してしまうため
@@ -41,22 +43,32 @@
     var isApp = function () { return !!navigator.standalone || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)'); };
     var size = {};
     var iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var vhEl = document.getElementById('vh'), lastH = 0, lastPortrait = null;
     function fit() {
       var portrait = window.innerHeight >= window.innerWidth;
       var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      var vv = window.visualViewport;
       if (iOS) {
-        // iPhone：表示の高さがホームバーや時計の帯の分だけ短く報告されるので、画面そのものの高さまで伸ばす。
+        // iPhone：表示の高さがホームバーや時計の帯の分だけ短く報告されるので、
+        // 「表示＋時計の帯」「100vh」「ホーム画面アプリなら画面そのものの高さ」のいちばん大きい値まで伸ばす。
         // ページ自体の高さも同じにしないと、下のホームバーの所で掲示板が切れて描かれない
-        var h = Math.max(window.innerHeight + insets().top, document.documentElement.clientHeight, isApp() ? sh : 0);
+        var h = Math.max(window.innerHeight + insets().top, document.documentElement.clientHeight, vhEl.offsetHeight, isApp() ? sh : 0);
         board.style.height = h + 'px';
         document.documentElement.style.height = document.body.style.height = h + 'px';
       } else {
-        // Android など：今見えている範囲にぴったり合わせる（画面そのものの高さはナビゲーションバーや URL バーも含むので使わない）
-        board.style.height = ''; document.documentElement.style.height = document.body.style.height = '';
+        // Android など：実際に見えている範囲（visualViewport）にぴったり合わせる。
+        // 100vh や画面そのものの高さは URL バー・ナビゲーションバーの分も含むので使わない。
+        // キーボードが出て大きく縮んだときは、高さを変えない（掲示板の中で合わせる）
+        var see = Math.round(vv ? vv.height : window.innerHeight);
+        if (portrait !== lastPortrait) lastH = 0;
+        lastPortrait = portrait;
+        var h2 = lastH && lastH - see > 150 ? lastH : see;
+        lastH = h2;
+        board.style.height = h2 + 'px';
+        document.documentElement.style.height = document.body.style.height = '';
       }
       if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
-      var vv = window.visualViewport;
-      size = { app: isApp(), inner: window.innerHeight, screen: sh, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
+      size = { app: isApp(), ios: iOS, inner: window.innerHeight, screen: sh, v100: vhEl.offsetHeight, frame: board.offsetHeight, sy: Math.round(window.scrollY || 0), vt: vv ? Math.round(vv.offsetTop) : 0, vh: vv ? Math.round(vv.height) : 0 }; // 確認用（掲示板の設定画面に出す）
     }
     fit();
     window.addEventListener('load', fit);
