@@ -20,6 +20,8 @@
   /* iPhoneのホーム画面アプリでは「100%」が時計の帯のぶん短くなるので、その分を足して下まで届かせる */
   /* ふつうは今見えている範囲にぴったり（Android など）。iPhone だけは JS（fit）で画面の下の端まで伸ばす */
   iframe { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
+  /* iPhone・iPad だけ：v.0.1.5 で下まで表示できていた指定と同じ（時計の帯の分を足し、最低でも 100vh） */
+  html.ios iframe { height: calc(100% + env(safe-area-inset-top, 0px)); min-height: 100vh; }
   #vh { position: fixed; top: 0; left: 0; width: 0; height: 100vh; visibility: hidden; pointer-events: none; }
   #probe { position: fixed; top: 0; left: 0; visibility: hidden; pointer-events: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 </style>
@@ -43,6 +45,7 @@
     var isApp = function () { return !!navigator.standalone || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)'); };
     var size = {};
     var iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (iOS) document.documentElement.className += ' ios';
     var vhEl = document.getElementById('vh'), lastH = 0, lastPortrait = null;
     function fit() {
       var portrait = window.innerHeight >= window.innerWidth;
@@ -52,7 +55,7 @@
         // iPhone：表示の高さがホームバーや時計の帯の分だけ短く報告されるので、
         // 「表示＋時計の帯」「100vh」「ホーム画面アプリなら画面そのものの高さ」のいちばん大きい値まで伸ばす。
         // ページ自体の高さも同じにしないと、下のホームバーの所で掲示板が切れて描かれない
-        var h = Math.max(window.innerHeight + insets().top, document.documentElement.clientHeight, vhEl.offsetHeight, isApp() ? sh : 0);
+        var h = Math.max(window.innerHeight, document.documentElement.clientHeight, isApp() ? sh : 0); // v.0.1.5 と同じ計算（CSS の min-height: 100vh と合わせて効く）
         board.style.height = h + 'px';
         document.documentElement.style.height = document.body.style.height = h + 'px';
       } else {
